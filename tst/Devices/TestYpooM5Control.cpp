@@ -549,3 +549,49 @@ TEST(YpooM5ControlTest, StaleTelemetryCannotExtendAnAcknowledgedStopSettlingWind
     control.requestStart();
     EXPECT_EQ(control.next(7800).action, Action::None);
 }
+
+TEST(YpooM5ControlTest, ModelRangesWidenTargetsAndSurviveReset) {
+    YpooM5Control control;
+    control.setInclineRange(-6, 42);
+    control.setSpeedRange(1.0, 20.0);
+    control.telemetry(1, 0, 0);
+    ASSERT_TRUE(control.requestIncline(42));
+    EXPECT_DOUBLE_EQ(control.next(0).value, 42);
+    EXPECT_FALSE(control.requestIncline(43));
+    EXPECT_FALSE(control.requestIncline(-7));
+    EXPECT_TRUE(control.requestSpeed(20.0));
+    EXPECT_FALSE(control.requestSpeed(20.1));
+    control.reset();
+    EXPECT_DOUBLE_EQ(control.minIncline(), -6);
+    EXPECT_DOUBLE_EQ(control.maxIncline(), 42);
+    EXPECT_DOUBLE_EQ(control.maxSpeed(), 20.0);
+    control.telemetry(1, 0, 0);
+    EXPECT_TRUE(control.requestIncline(42));
+    // Degenerate ranges are ignored.
+    control.setInclineRange(5, 5);
+    control.setSpeedRange(0, 10);
+    EXPECT_DOUBLE_EQ(control.maxIncline(), 42);
+    EXPECT_DOUBLE_EQ(control.minSpeed(), 1.0);
+}
+
+TEST(YpooM5ControlTest, ParsesFtmsSupportedRangeCharacteristics) {
+    double min = 0, max = 0, step = 0;
+    // Supported Speed Range (2AD4): 1.00-20.00 km/h in 0.10 km/h increments.
+    const uint8_t speed[] = {0x64, 0x00, 0xD0, 0x07, 0x0A, 0x00};
+    ASSERT_TRUE(YpooM5Control::parseSpeedRange(speed, sizeof(speed), min, max, step));
+    EXPECT_DOUBLE_EQ(min, 1.0);
+    EXPECT_DOUBLE_EQ(max, 20.0);
+    EXPECT_DOUBLE_EQ(step, 0.1);
+    // Supported Inclination Range (2AD5): -6.0 to 42.0 % in 1.0 % increments.
+    const uint8_t incline[] = {0xC4, 0xFF, 0xA4, 0x01, 0x0A, 0x00};
+    ASSERT_TRUE(YpooM5Control::parseInclinationRange(incline, sizeof(incline), min, max, step));
+    EXPECT_DOUBLE_EQ(min, -6.0);
+    EXPECT_DOUBLE_EQ(max, 42.0);
+    EXPECT_DOUBLE_EQ(step, 1.0);
+    const uint8_t tooShort[] = {0xC4, 0xFF, 0xA4};
+    EXPECT_FALSE(YpooM5Control::parseInclinationRange(tooShort, sizeof(tooShort), min, max, step));
+    const uint8_t inverted[] = {0xA4, 0x01, 0xC4, 0xFF, 0x0A, 0x00};
+    EXPECT_FALSE(YpooM5Control::parseInclinationRange(inverted, sizeof(inverted), min, max, step));
+    const uint8_t zeroSpeed[] = {0x00, 0x00, 0xD0, 0x07, 0x0A, 0x00};
+    EXPECT_FALSE(YpooM5Control::parseSpeedRange(zeroSpeed, sizeof(zeroSpeed), min, max, step));
+}

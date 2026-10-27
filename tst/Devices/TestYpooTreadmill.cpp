@@ -10,6 +10,22 @@ class YpooTreadmillTestPeer {
         device.processTelemetry(packet, time);
     }
     static void model(ypootreadmill &device, bool ypM1552) { device.YP_M1552 = ypM1552; }
+    static void modelUd(ypootreadmill &device, bool ud) {
+        device.YPTM_UD = ud;
+        if (ud) {
+            device.inclineMin = -6.0;
+            device.inclineMax = 42.0;
+        }
+        device.applyModelRanges();
+    }
+    static bool supportedRange(ypootreadmill &device, quint16 uuid, const QByteArray &value) {
+        const bool applied = device.applySupportedRange(QBluetoothUuid(uuid), value);
+        if (applied)
+            device.applyModelRanges();
+        return applied;
+    }
+    static double minIncline(const ypootreadmill &device) { return device.ypooM5Control.minIncline(); }
+    static double maxIncline(const ypootreadmill &device) { return device.ypooM5Control.maxIncline(); }
     static bool stopPending(const ypootreadmill &device) { return device.requestStop != -1; }
     static YpooM5Control::Action beginCountdown(ypootreadmill &device) {
         device.ypooM5Control.telemetry(0, 0, device.ypooM5Clock.elapsed());
@@ -169,4 +185,33 @@ TEST_F(YpooTreadmillTest, AdvertisesModelRangesThroughGenericDeviceInterface) {
         EXPECT_EQ(control.speedRange, QByteArray::fromHex("640058070a00"));
         EXPECT_EQ(control.inclineRange, QByteArray::fromHex(ypM1552 ? "000078000a00" : "c4ff96000a00"));
     }
+}
+
+TEST_F(YpooTreadmillTest, YptmUdAdvertisesWiderInclineAndOnlyWidensFromSupportedRanges) {
+    YpooTreadmillTestPeer::modelUd(device, true);
+    bluetoothdevice &base = device;
+    const auto control = base.virtualTreadmillControl();
+    EXPECT_TRUE(control.enabled);
+    EXPECT_EQ(control.speedRange, QByteArray::fromHex("640058070a00"));
+    EXPECT_EQ(control.inclineRange, QByteArray::fromHex("c4ffa4010a00")); // -6.0 to 42.0 %, 1 % step
+    YpooTreadmillTestPeer::telemetry(device, telemetryPacket(840, 0), 0);
+    EXPECT_TRUE(YpooTreadmillTestPeer::requestIncline(device, 42));
+    EXPECT_FALSE(YpooTreadmillTestPeer::requestIncline(device, 43));
+    EXPECT_FALSE(YpooTreadmillTestPeer::requestIncline(device, -7));
+    // A console under-reporting -3..15 % (2AD5) keeps the model defaults.
+    EXPECT_TRUE(YpooTreadmillTestPeer::supportedRange(device, 0x2AD5, QByteArray::fromHex("e2ff96000a00")));
+    EXPECT_DOUBLE_EQ(YpooTreadmillTestPeer::minIncline(device), -6);
+    EXPECT_DOUBLE_EQ(YpooTreadmillTestPeer::maxIncline(device), 42);
+    // A wider report (-10..45 %) is adopted and advertised to training apps.
+    EXPECT_TRUE(YpooTreadmillTestPeer::supportedRange(device, 0x2AD5, QByteArray::fromHex("9cffc2010a00")));
+    EXPECT_DOUBLE_EQ(YpooTreadmillTestPeer::minIncline(device), -10);
+    EXPECT_DOUBLE_EQ(YpooTreadmillTestPeer::maxIncline(device), 45);
+    EXPECT_EQ(base.virtualTreadmillControl().inclineRange, QByteArray::fromHex("9cffc2010a00"));
+    // 2AD4 can raise the speed ceiling (here to 20.0 km/h).
+    EXPECT_TRUE(YpooTreadmillTestPeer::supportedRange(device, 0x2AD4, QByteArray::fromHex("6400d0070a00")));
+    EXPECT_EQ(base.virtualTreadmillControl().speedRange, QByteArray::fromHex("6400d0070a00"));
+    // Malformed payloads and other models are ignored.
+    EXPECT_FALSE(YpooTreadmillTestPeer::supportedRange(device, 0x2AD5, QByteArray::fromHex("c4ff")));
+    YpooTreadmillTestPeer::modelUd(device, false);
+    EXPECT_FALSE(YpooTreadmillTestPeer::supportedRange(device, 0x2AD5, QByteArray::fromHex("9cffc2010a00")));
 }

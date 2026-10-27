@@ -15,8 +15,61 @@ class YpooM5Control {
         double value;
     };
 
-    void reset() { *this = YpooM5Control(); }
+    void reset() {
+        // A physical reconnection restarts the state machine but keeps the model's ranges.
+        YpooM5Control fresh;
+        fresh.speedMin = speedMin;
+        fresh.speedMax = speedMax;
+        fresh.inclineMin = inclineMin;
+        fresh.inclineMax = inclineMax;
+        *this = fresh;
+    }
     bool running() const { return speed > 0; }
+
+    // Ranges default to the YPTM-U0 values; other models (or the FTMS Supported Range
+    // characteristics) can widen or narrow them before targets are requested.
+    void setSpeedRange(double min, double max) {
+        if (std::isfinite(min) && std::isfinite(max) && min > 0 && max > min) {
+            speedMin = min;
+            speedMax = max;
+        }
+    }
+    void setInclineRange(double min, double max) {
+        if (std::isfinite(min) && std::isfinite(max) && max > min) {
+            inclineMin = min;
+            inclineMax = max;
+        }
+    }
+    double minSpeed() const { return speedMin; }
+    double maxSpeed() const { return speedMax; }
+    double minIncline() const { return inclineMin; }
+    double maxIncline() const { return inclineMax; }
+
+    // FTMS Supported Speed Range (2AD4): min, max and increment as unsigned 0.01 km/h.
+    static bool parseSpeedRange(const uint8_t *data, size_t size, double &min, double &max, double &step) {
+        if (size < 6)
+            return false;
+        min = (data[0] | (uint16_t(data[1]) << 8)) / 100.0;
+        max = (data[2] | (uint16_t(data[3]) << 8)) / 100.0;
+        step = (data[4] | (uint16_t(data[5]) << 8)) / 100.0;
+        return min > 0 && max > min && max <= 40.0;
+    }
+
+    // FTMS Supported Inclination Range (2AD5): signed min/max and unsigned increment in 0.1 %.
+    static bool parseInclinationRange(const uint8_t *data, size_t size, double &min, double &max, double &step) {
+        if (size < 6)
+            return false;
+        int rawMin = data[0] | (uint16_t(data[1]) << 8);
+        int rawMax = data[2] | (uint16_t(data[3]) << 8);
+        if (rawMin >= 0x8000)
+            rawMin -= 0x10000;
+        if (rawMax >= 0x8000)
+            rawMax -= 0x10000;
+        min = rawMin / 10.0;
+        max = rawMax / 10.0;
+        step = (data[4] | (uint16_t(data[5]) << 8)) / 10.0;
+        return max > min && min >= -30.0 && max <= 60.0;
+    }
     bool hasFreshTelemetry(int64_t now) const { return lastTelemetry >= 0 && now - lastTelemetry <= 2000; }
     bool canResumeRecording(int64_t now) const {
         return running() && hasFreshTelemetry(now) && !stopRequested && !faulted;
@@ -71,13 +124,13 @@ class YpooM5Control {
             requestStop();
             return true;
         }
-        if (!std::isfinite(value) || value < 1.0 || value > 18.8)
+        if (!std::isfinite(value) || value < speedMin || value > speedMax)
             return false;
         return setTarget(speedTarget, std::round(value * 10) / 10);
     }
 
     bool requestIncline(double value) {
-        if (!std::isfinite(value) || value < -6.0 || value > 15.0)
+        if (!std::isfinite(value) || value < inclineMin || value > inclineMax)
             return false;
         double target = std::round(value);
         if (value == std::floor(value) + 0.5) {
@@ -248,6 +301,10 @@ class YpooM5Control {
     int64_t zeroSpeedSince = -1;
     double speed = 0;
     double incline = 0;
+    double speedMin = 1.0;
+    double speedMax = 18.8;
+    double inclineMin = -6.0;
+    double inclineMax = 15.0;
     Action failure = Action::None;
 };
 

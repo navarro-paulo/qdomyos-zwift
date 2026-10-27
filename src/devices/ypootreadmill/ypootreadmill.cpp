@@ -101,6 +101,30 @@ void ypootreadmill::btinit() {
     requestStart = -1;
     requestSpeed = -1;
     requestInclination = -100;
+    if (YPTM_UD) {
+        // Captured YPTM-UD firmware (MegaGym Everest 49) applies speed and incline targets while still
+        // answering Request Control with "control not permitted". Live telemetry is enough to proceed;
+        // every target is confirmed by telemetry anyway.
+        if (!ypooM5Control.hasFreshTelemetry(ypooM5Clock.elapsed())) {
+            QEventLoop telemetry;
+            ypooM5WritePending = true;
+            connect(gattFTMSService, &QLowEnergyService::characteristicChanged, &telemetry,
+                    [this, &telemetry](const QLowEnergyCharacteristic &, const QByteArray &) {
+                        if (ypooM5Control.hasFreshTelemetry(ypooM5Clock.elapsed()))
+                            telemetry.quit();
+                    });
+            QTimer::singleShot(1500, &telemetry, &QEventLoop::quit);
+            telemetry.exec();
+            ypooM5WritePending = false;
+        }
+        if (ypooM5Control.hasFreshTelemetry(ypooM5Clock.elapsed())) {
+            initDone = true;
+            emit debug(QStringLiteral("YPOO M5: control not granted but telemetry is live; open FTMS mode"));
+            if (homeform::singleton())
+                homeform::singleton()->setToastRequested(QObject::tr("YPOO M5 ready (open FTMS mode)"));
+            return;
+        }
+    }
     emit debug(QStringLiteral("YPOO M5: initialization failed; motor commands disabled"));
     if (homeform::singleton())
         homeform::singleton()->setToastRequested(QObject::tr("YPOO M5 initialization failed; reconnect required"));
@@ -314,13 +338,61 @@ void ypootreadmill::stopWhenIdle() {
 bluetoothdevice::VirtualTreadmillControl ypootreadmill::virtualTreadmillControl() const {
     VirtualTreadmillControl control;
     control.enabled = true;
-    control.speedRange = QByteArray::fromHex("640058070a00");
-    control.inclineRange = QByteArray::fromHex(YP_M1552 ? "000078000a00" : "c4ff96000a00");
+    control.speedRange = encodeRange(speedMin, speedMax, 0.1, 100.0);
+    control.inclineRange = YP_M1552 ? QByteArray::fromHex("000078000a00") : encodeRange(inclineMin, inclineMax, 1.0, 10.0);
     return control;
 }
 
+QByteArray ypootreadmill::encodeRange(double min, double max, double step, double scale) {
+    // FTMS Supported Range layout: minimum, maximum and increment as little-endian 16-bit values.
+    QByteArray out;
+    for (const double value : {min, max, step}) {
+        const uint16_t raw = static_cast<uint16_t>(static_cast<int16_t>(std::lround(value * scale)));
+        out.append(char(raw & 0xFF));
+        out.append(char(raw >> 8));
+    }
+    return out;
+}
+
+void ypootreadmill::applyModelRanges() {
+    ypooM5Control.setSpeedRange(speedMin, speedMax);
+    ypooM5Control.setInclineRange(inclineMin, inclineMax);
+}
+
+bool ypootreadmill::applySupportedRange(const QBluetoothUuid &uuid, const QByteArray &value) {
+    // Only YPTM-UD trusts the FTMS Supported Range characteristics; the other models keep the
+    // ranges validated on hardware. Reported ranges can only widen the model defaults: captured
+    // firmware is expected to under-report what the console actually allows, and an unreachable
+    // target simply stays unconfirmed by telemetry.
+    if (!YPTM_UD || value.size() < 6)
+        return false;
+    const auto data = reinterpret_cast<const uint8_t *>(value.constData());
+    double min = 0, max = 0, step = 0;
+    if (uuid == QBluetoothUuid(quint16(0x2AD4)) && YpooM5Control::parseSpeedRange(data, value.size(), min, max, step)) {
+        speedMin = qMin(speedMin, min);
+        speedMax = qMax(speedMax, max);
+        emit debug(QStringLiteral("YPOO M5: supported speed range %1-%2 km/h (step %3); using %4-%5")
+                       .arg(min).arg(max).arg(step).arg(speedMin).arg(speedMax));
+        return true;
+    }
+    if (uuid == QBluetoothUuid(quint16(0x2AD5)) && YpooM5Control::parseInclinationRange(data, value.size(), min, max, step)) {
+        inclineMin = qMin(inclineMin, min);
+        inclineMax = qMax(inclineMax, max);
+        emit debug(QStringLiteral("YPOO M5: supported inclination range %1-%2 % (step %3); using %4-%5")
+                       .arg(min).arg(max).arg(step).arg(inclineMin).arg(inclineMax));
+        return true;
+    }
+    return false;
+}
+
+void ypootreadmill::characteristicRead(const QLowEnergyCharacteristic &characteristic, const QByteArray &value) {
+    emit debug(QStringLiteral(" <R ") + characteristic.uuid().toString() + QStringLiteral(" ") + value.toHex(' '));
+    if (applySupportedRange(characteristic.uuid(), value))
+        applyModelRanges();
+}
+
 void ypootreadmill::changeInclinationRequested(double grade, double percentage) {
-    changeInclination(grade, qMax(percentage, YP_M1552 ? 0.0 : -6.0));
+    changeInclination(grade, qMax(percentage, YP_M1552 ? 0.0 : inclineMin));
 }
 
 void ypootreadmill::ftmsCharacteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &value) {
@@ -336,6 +408,14 @@ void ypootreadmill::ftmsCharacteristicChanged(const QLowEnergyCharacteristic &ch
 void ypootreadmill::deviceDiscovered(const QBluetoothDeviceInfo &device) {
     bluetoothDevice = device;
     YP_M1552 = device.name().startsWith(QStringLiteral("YP-M1552-"), Qt::CaseInsensitive);
+    YPTM_UD = device.name().startsWith(QStringLiteral("YPTM-UD"), Qt::CaseInsensitive);
+    if (YPTM_UD) {
+        // YPOO M5 MAX (MegaGym Everest 49): 49 incline levels from -6 % to +42 %.
+        // The FTMS Supported Range characteristics refine these values after discovery.
+        inclineMin = -6.0;
+        inclineMax = 42.0;
+    }
+    applyModelRanges();
 #ifdef Q_OS_IOS
     QZ_EnableDiscoveryCharsAndDescripttors = true;
 #endif
@@ -375,7 +455,16 @@ void ypootreadmill::stateChanged(QLowEnergyService::ServiceState state) {
         return;
     }
     connect(gattFTMSService, &QLowEnergyService::characteristicChanged, this, &ypootreadmill::characteristicChanged);
+    connect(gattFTMSService, &QLowEnergyService::characteristicRead, this, &ypootreadmill::characteristicRead);
     connect(gattFTMSService, &QLowEnergyService::descriptorWritten, this, &ypootreadmill::descriptorWritten);
+    if (YPTM_UD) {
+        // Learn the console's advertised ranges before any target is requested.
+        for (const auto uuid : {quint16(0x2AD4), quint16(0x2AD5)}) {
+            const auto characteristic = gattFTMSService->characteristic(QBluetoothUuid(uuid));
+            if (characteristic.isValid() && (characteristic.properties() & QLowEnergyCharacteristic::Read))
+                gattFTMSService->readCharacteristic(characteristic);
+        }
+    }
     connect(gattFTMSService, static_cast<void (QLowEnergyService::*)(QLowEnergyService::ServiceError)>(
                                  &QLowEnergyService::error), this, [this](QLowEnergyService::ServiceError) {
         emit debug(QStringLiteral("YPOO M5: FTMS service error"));

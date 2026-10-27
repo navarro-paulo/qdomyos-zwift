@@ -719,7 +719,7 @@ void DeviceTestDataIndex::Initialize() {
     // These prefixes take priority over Horizon's broader YPTM- match.
     RegisterNewDeviceTestData(DeviceIndex::YpooTreadmill)
         ->expectDevice<ypootreadmill>()
-        ->acceptDeviceNames({"YPTM-U0", "YP-M1552-"}, DeviceNameComparison::StartsWithIgnoreCase)
+        ->acceptDeviceNames({"YPTM-U0", "YPTM-UD", "YP-M1552-"}, DeviceNameComparison::StartsWithIgnoreCase)
         ->excluding<horizontreadmill>();
 
     // Horizon Treadmill

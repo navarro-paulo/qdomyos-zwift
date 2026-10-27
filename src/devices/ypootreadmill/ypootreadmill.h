@@ -10,6 +10,8 @@
 #include <QtBluetooth/QLowEnergyService>
 
 // YPTM-U0 and YP-M1552 share the unlock/control protocol but use different incline units.
+// YPTM-UD (YPOO M5 MAX rebrands such as the MegaGym Everest 49) uses the YPTM-U0 encoding
+// with a wider incline range, read from the FTMS Supported Range characteristics when available.
 class ypootreadmill : public treadmill {
     Q_OBJECT
   public:
@@ -37,6 +39,9 @@ class ypootreadmill : public treadmill {
     void writeCharacteristic(QLowEnergyService *service, QLowEnergyCharacteristic characteristic,
                              uint8_t *data, uint8_t size, QString info);
     void processTelemetry(const QByteArray &data, qint64 now);
+    void applyModelRanges();
+    bool applySupportedRange(const QBluetoothUuid &uuid, const QByteArray &value);
+    static QByteArray encodeRange(double min, double max, double step, double scale);
     friend class YpooTreadmillTestPeer;
 
     QTimer refresh;
@@ -45,6 +50,11 @@ class ypootreadmill : public treadmill {
     QLowEnergyCharacteristic gattWriteCharUnlock;
     bool noHeartService;
     bool YP_M1552 = false;
+    bool YPTM_UD = false;
+    double speedMin = 1.0;
+    double speedMax = 18.8;
+    double inclineMin = -6.0;
+    double inclineMax = 15.0;
     bool initDone = false;
     bool initRequest = false;
     unsigned notificationSubscribed = 0;
@@ -61,6 +71,7 @@ class ypootreadmill : public treadmill {
     void stateChanged(QLowEnergyService::ServiceState state);
     void descriptorWritten(const QLowEnergyDescriptor &descriptor, const QByteArray &value);
     void characteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &value);
+    void characteristicRead(const QLowEnergyCharacteristic &characteristic, const QByteArray &value);
     void controllerStateChanged(QLowEnergyController::ControllerState state);
     void changeInclinationRequested(double grade, double percentage);
     void ftmsCharacteristicChanged(const QLowEnergyCharacteristic &characteristic, const QByteArray &value);

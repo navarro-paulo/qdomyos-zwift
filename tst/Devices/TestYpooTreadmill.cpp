@@ -210,3 +210,19 @@ TEST_F(YpooTreadmillTest, YptmUStartsWithM5RangeAndOnlyWidensFromSupportedRanges
     YpooTreadmillTestPeer::modelU(device, false);
     EXPECT_FALSE(YpooTreadmillTestPeer::supportedRange(device, 0x2AD5, QByteArray::fromHex("9cffc2010a00")));
 }
+
+TEST_F(YpooTreadmillTest, YptmULearnsWiderInclineFromConsoleTelemetry) {
+    YpooTreadmillTestPeer::modelU(device, true);
+    YpooTreadmillTestPeer::telemetry(device, telemetryPacket(840, 0), 0);
+    EXPECT_FALSE(YpooTreadmillTestPeer::requestIncline(device, 30));
+    // The keypad took the deck to 42 %: the M5 MAX shares the M5 name scheme.
+    YpooTreadmillTestPeer::telemetry(device, telemetryPacket(840, 420), 500);
+    EXPECT_DOUBLE_EQ(YpooTreadmillTestPeer::maxIncline(device), 42);
+    EXPECT_DOUBLE_EQ(YpooTreadmillTestPeer::minIncline(device), -6);
+    EXPECT_TRUE(YpooTreadmillTestPeer::requestIncline(device, 30));
+    bluetoothdevice &base = device;
+    EXPECT_EQ(base.virtualTreadmillControl().inclineRange, QByteArray::fromHex("c4ffa4010a00"));
+    // Implausible telemetry does not move the range.
+    YpooTreadmillTestPeer::telemetry(device, telemetryPacket(840, 900), 1000);
+    EXPECT_DOUBLE_EQ(YpooTreadmillTestPeer::maxIncline(device), 42);
+}

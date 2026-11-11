@@ -250,6 +250,15 @@ void ypootreadmill::processTelemetry(const QByteArray &value, qint64 now) {
         return;
     if (YP_M1552)
         incline = YpooM5Control::levelToPercent(incline);
+    if (YPTM_U && (incline < inclineMin || incline > inclineMax) && incline >= -30.0 && incline <= 60.0) {
+        // The console itself is at an incline outside the known range (set from its keypad):
+        // the M5 MAX reaches 42 % while sharing the M5 name scheme, so learn the range from it.
+        inclineMin = qMin(inclineMin, std::floor(incline));
+        inclineMax = qMax(inclineMax, std::ceil(incline));
+        applyModelRanges();
+        emit debug(QStringLiteral("YPOO M5: telemetry incline %1 % widened the range to %2..%3")
+                       .arg(incline).arg(inclineMin).arg(inclineMax));
+    }
     const bool wasRunning = ypooM5Control.running();
     ypooM5Control.telemetry(speed, incline, now);
     if (!wasRunning && ypooM5Control.running())
@@ -453,11 +462,17 @@ void ypootreadmill::stateChanged(QLowEnergyService::ServiceState state) {
     connect(gattFTMSService, &QLowEnergyService::characteristicRead, this, &ypootreadmill::characteristicRead);
     connect(gattFTMSService, &QLowEnergyService::descriptorWritten, this, &ypootreadmill::descriptorWritten);
     if (YPTM_U) {
-        // Learn the console's advertised ranges before any target is requested.
+        // Learn the console's advertised ranges before any target is requested. Service discovery
+        // already read every readable characteristic; an explicit read here races the CCCD writes
+        // below and fails on Android (seen on a MegaGym Everest 49), so use the cached values.
         for (const auto uuid : {quint16(0x2AD4), quint16(0x2AD5)}) {
             const auto characteristic = gattFTMSService->characteristic(QBluetoothUuid(uuid));
-            if (characteristic.isValid() && (characteristic.properties() & QLowEnergyCharacteristic::Read))
-                gattFTMSService->readCharacteristic(characteristic);
+            if (!characteristic.isValid())
+                continue;
+            emit debug(QStringLiteral("YPOO M5: cached ") + characteristic.uuid().toString() + QStringLiteral(" ") +
+                       characteristic.value().toHex(' '));
+            if (applySupportedRange(characteristic.uuid(), characteristic.value()))
+                applyModelRanges();
         }
     }
     connect(gattFTMSService, static_cast<void (QLowEnergyService::*)(QLowEnergyService::ServiceError)>(

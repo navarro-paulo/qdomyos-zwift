@@ -5,14 +5,13 @@ Device discovery selects the driver automatically from the Bluetooth name.
 
 | Name prefix | Speed range | Incline range | Incline encoding |
 | --- | --- | --- | --- |
-| `YPTM-U0` | 1.0–18.8 km/h | −6–15% | Signed percentage in 0.1% units |
-| `YPTM-UD` (YPOO M5 MAX, e.g. MegaGym Everest 49) | 1.0–18.8 km/h, widened by `2AD4` | −6–42%, widened by `2AD5` | Signed percentage in 0.1% units |
+| `YPTM-U` + last three MAC bytes (M5, M5 MAX, MegaGym Everest 49) | 1.0–18.8 km/h, widened by `2AD4` | −6–15%, widened by `2AD5` (M5 MAX: 42%) | Signed percentage in 0.1% units |
 | `YP-M1552-` | 1.0–18.8 km/h | 0–12% | Levels 0–21 in 0.1-level units |
 
 All models use 0.1 km/h speed steps and 1% incline targets.
 Other YPTM models and YPOO Mini Pro use the Horizon driver.
 
-For `YPTM-UD`, the driver reads the FTMS Supported Speed Range (`2AD4`) and Supported
+For `YPTM-U`, the driver reads the FTMS Supported Speed Range (`2AD4`) and Supported
 Inclination Range (`2AD5`) characteristics after service discovery. A reported range can only
 widen the model defaults above: captured firmware answers Request Control with "control not
 permitted" while still applying targets, so the console is not trusted to narrow what it accepts.
@@ -47,7 +46,7 @@ The unlock reply does not confirm a motor command.
 Initialization has a maximum of three unlock/control attempts.
 It sends no motor commands and discards early Start and target requests.
 Successful initialization displays "YPOO M5 ready".
-For `YPTM-UD` only, when all three attempts are refused but telemetry is live, the driver still
+For `YPTM-U` only, when all three attempts are refused but telemetry is live, the driver still
 enables motor commands ("YPOO M5 ready (open FTMS mode)"): the captured MegaGym Everest 49 firmware
 applies speed and incline targets while denying Request Control, and every target is confirmed
 by telemetry regardless.
@@ -84,7 +83,7 @@ Invalid or incomplete packets do not update the controller or metrics.
 
 ### Incline conversion
 
-For `YPTM-U0`, the driver sends and reads signed incline percentages directly.
+For `YPTM-U`, the driver sends and reads signed incline percentages directly.
 For `YP-M1552-`, it converts a percentage to a level as follows:
 
 ```text

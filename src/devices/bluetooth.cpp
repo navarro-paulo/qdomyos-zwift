@@ -1819,8 +1819,7 @@ void bluetooth::deviceDiscovered(const QBluetoothDeviceInfo &device) {
                     emit searchingStop();
                 }
                 this->signalBluetoothDeviceConnected(wahooKickRunTreadmill);
-            } else if ((b.name().startsWith(QStringLiteral("YPTM-U0"), Qt::CaseInsensitive) ||
-                        b.name().startsWith(QStringLiteral("YPTM-UD"), Qt::CaseInsensitive) || // YPOO M5 MAX
+            } else if ((b.name().startsWith(QStringLiteral("YPTM-U"), Qt::CaseInsensitive) || // YPTM-U + last 3 MAC bytes
                         b.name().startsWith(QStringLiteral("YP-M1552-"), Qt::CaseInsensitive)) &&
                        !ypooTreadmill && !horizonTreadmill && filter) {
                 this->setLastBluetoothDevice(b);

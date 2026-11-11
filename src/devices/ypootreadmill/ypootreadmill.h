@@ -9,9 +9,10 @@
 #include <QtBluetooth/QLowEnergyController>
 #include <QtBluetooth/QLowEnergyService>
 
-// YPTM-U0 and YP-M1552 share the unlock/control protocol but use different incline units.
-// YPTM-UD (YPOO M5 MAX rebrands such as the MegaGym Everest 49) uses the YPTM-U0 encoding
-// with a wider incline range, read from the FTMS Supported Range characteristics when available.
+// YPTM-U and YP-M1552 share the unlock/control protocol but use different incline units.
+// YPTM-U names are "YPTM-U" + the last three MAC bytes for both the M5 and the M5 MAX (and rebrands
+// such as the MegaGym Everest 49), so the model cannot be told from the name: the incline ceiling is
+// read from the FTMS Supported Range characteristics (2AD4/2AD5) and only widens the M5 defaults.
 class ypootreadmill : public treadmill {
     Q_OBJECT
   public:
@@ -50,7 +51,7 @@ class ypootreadmill : public treadmill {
     QLowEnergyCharacteristic gattWriteCharUnlock;
     bool noHeartService;
     bool YP_M1552 = false;
-    bool YPTM_UD = false;
+    bool YPTM_U = false;
     double speedMin = 1.0;
     double speedMax = 18.8;
     double inclineMin = -6.0;

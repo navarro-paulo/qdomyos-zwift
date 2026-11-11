@@ -101,8 +101,8 @@ void ypootreadmill::btinit() {
     requestStart = -1;
     requestSpeed = -1;
     requestInclination = -100;
-    if (YPTM_UD) {
-        // Captured YPTM-UD firmware (MegaGym Everest 49) applies speed and incline targets while still
+    if (YPTM_U) {
+        // Captured YPTM-U firmware (MegaGym Everest 49) applies speed and incline targets while still
         // answering Request Control with "control not permitted". Live telemetry is enough to proceed;
         // every target is confirmed by telemetry anyway.
         if (!ypooM5Control.hasFreshTelemetry(ypooM5Clock.elapsed())) {
@@ -360,11 +360,12 @@ void ypootreadmill::applyModelRanges() {
 }
 
 bool ypootreadmill::applySupportedRange(const QBluetoothUuid &uuid, const QByteArray &value) {
-    // Only YPTM-UD trusts the FTMS Supported Range characteristics; the other models keep the
-    // ranges validated on hardware. Reported ranges can only widen the model defaults: captured
+    // YPTM-U consoles share one name scheme (YPTM-U + last three MAC bytes) across the M5 (15 %)
+    // and M5 MAX (42 %), so the incline ceiling comes from the FTMS Supported Range characteristics.
+    // YP-M1552 keeps its hardware-validated range. Reported ranges can only widen the defaults: captured
     // firmware is expected to under-report what the console actually allows, and an unreachable
     // target simply stays unconfirmed by telemetry.
-    if (!YPTM_UD || value.size() < 6)
+    if (!YPTM_U || value.size() < 6)
         return false;
     const auto data = reinterpret_cast<const uint8_t *>(value.constData());
     double min = 0, max = 0, step = 0;
@@ -408,13 +409,7 @@ void ypootreadmill::ftmsCharacteristicChanged(const QLowEnergyCharacteristic &ch
 void ypootreadmill::deviceDiscovered(const QBluetoothDeviceInfo &device) {
     bluetoothDevice = device;
     YP_M1552 = device.name().startsWith(QStringLiteral("YP-M1552-"), Qt::CaseInsensitive);
-    YPTM_UD = device.name().startsWith(QStringLiteral("YPTM-UD"), Qt::CaseInsensitive);
-    if (YPTM_UD) {
-        // YPOO M5 MAX (MegaGym Everest 49): 49 incline levels from -6 % to +42 %.
-        // The FTMS Supported Range characteristics refine these values after discovery.
-        inclineMin = -6.0;
-        inclineMax = 42.0;
-    }
+    YPTM_U = device.name().startsWith(QStringLiteral("YPTM-U"), Qt::CaseInsensitive);
     applyModelRanges();
 #ifdef Q_OS_IOS
     QZ_EnableDiscoveryCharsAndDescripttors = true;
@@ -457,7 +452,7 @@ void ypootreadmill::stateChanged(QLowEnergyService::ServiceState state) {
     connect(gattFTMSService, &QLowEnergyService::characteristicChanged, this, &ypootreadmill::characteristicChanged);
     connect(gattFTMSService, &QLowEnergyService::characteristicRead, this, &ypootreadmill::characteristicRead);
     connect(gattFTMSService, &QLowEnergyService::descriptorWritten, this, &ypootreadmill::descriptorWritten);
-    if (YPTM_UD) {
+    if (YPTM_U) {
         // Learn the console's advertised ranges before any target is requested.
         for (const auto uuid : {quint16(0x2AD4), quint16(0x2AD5)}) {
             const auto characteristic = gattFTMSService->characteristic(QBluetoothUuid(uuid));

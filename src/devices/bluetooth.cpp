@@ -827,6 +827,7 @@ void bluetooth::deviceDiscovered(const QBluetoothDeviceInfo &device) {
     bool horizon_treadmill_force_ftms =
         settings.value(QZSettings::horizon_treadmill_force_ftms, QZSettings::default_horizon_treadmill_force_ftms)
             .toBool();
+    bool ypoo_m3_max = settings.value(QZSettings::ypoo_m3_max, QZSettings::default_ypoo_m3_max).toBool();
     bool sole_inclination =
         settings.value(QZSettings::sole_treadmill_inclination, QZSettings::default_sole_treadmill_inclination).toBool();
     QString ftms_rower = settings.value(QZSettings::ftms_rower, QZSettings::default_ftms_rower).toString();
@@ -1885,7 +1886,9 @@ void bluetooth::deviceDiscovered(const QBluetoothDeviceInfo &device) {
                 }
                 this->signalBluetoothDeviceConnected(wahooKickRunTreadmill);
             } else if ((b.name().startsWith(QStringLiteral("YPTM-U0"), Qt::CaseInsensitive) ||
-                        b.name().startsWith(QStringLiteral("YP-M1552-"), Qt::CaseInsensitive)) &&
+                        b.name().startsWith(QStringLiteral("YP-M1552-"), Qt::CaseInsensitive) ||
+                        // M3 MAX: "YPTM-U" + the last three bytes of the Bluetooth address
+                        (ypoo_m3_max && b.name().startsWith(QStringLiteral("YPTM-U"), Qt::CaseInsensitive))) &&
                        !ypooTreadmill && !horizonTreadmill && filter) {
                 this->setLastBluetoothDevice(b);
                 this->stopDiscovery();

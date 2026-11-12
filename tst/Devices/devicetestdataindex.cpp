@@ -747,6 +747,13 @@ void DeviceTestDataIndex::Initialize() {
         ->acceptDeviceNames({"YPTM-U0", "YP-M1552-"}, DeviceNameComparison::StartsWithIgnoreCase)
         ->excluding<horizontreadmill>();
 
+    // The M3 MAX is named "YPTM-U" + the last three bytes of its Bluetooth address, so a setting selects it.
+    RegisterNewDeviceTestData(DeviceIndex::YpooTreadmill_M3Max)
+        ->expectDevice<ypootreadmill>()
+        ->acceptDeviceNames({"YPTM-U", "YPTM-UA1B2C3"}, DeviceNameComparison::StartsWithIgnoreCase)
+        ->configureSettingsWith(QZSettings::ypoo_m3_max, true)
+        ->excluding<horizontreadmill>();
+
     // Horizon Treadmill
     RegisterNewDeviceTestData(DeviceIndex::HorizonTreadmill)
         ->expectDevice<horizontreadmill>()        

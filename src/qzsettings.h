@@ -3491,6 +3491,11 @@ class QZSettings {
     static const QString wahoo_wheel_question_answered;
     static constexpr bool default_wahoo_wheel_question_answered = false;
 
+    // YPOO M3 MAX (sold as MegaGym Everest 49): a "YPTM-U" console that inclines from -6 to 42 %. Its
+    // name is "YPTM-U" + the last three bytes of the Bluetooth address, so it cannot be told from the M5
+    static const QString ypoo_m3_max;
+    static constexpr bool default_ypoo_m3_max = false;
+
     /**
      * @brief Write the QSettings values using the constants from this namespace.
      * @param showDefaults Optionally indicates if the default should be shown with the key.

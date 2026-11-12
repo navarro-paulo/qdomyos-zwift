@@ -2503,6 +2503,7 @@ import AndroidStatusBar 1.0
             property string ui_theme: "graphite"
             property string ui_accent: "violet"
             property string ui_theme_mode: "auto"
+            property bool ypoo_m3_max: false
 
         }
 
@@ -13457,6 +13458,30 @@ import AndroidStatusBar 1.0
                                 Layout.fillWidth: true
                                 onClicked: { settings.eslinker_costaway = checked; window.settings_restart_to_apply = true; }
                             }                        
+                        }
+                    }
+
+                    AccordionElement {
+                        id: ypooTreadmillAccordion
+                        title: qsTr("YPOO Treadmill Options")
+                        indicatRectColor: Material.color(Material.Grey)
+                        textColor: Material.color(Material.Yellow)
+                        color: Material.backgroundColor
+                        accordionContent: ColumnLayout {
+                            IndicatorOnlySwitch {
+                                id: ypooM3MaxDelegate
+                                text: qsTr("M3 MAX (MegaGym Everest 49)")
+                                spacing: 0
+                                bottomPadding: 0
+                                topPadding: 0
+                                rightPadding: 0
+                                leftPadding: 0
+                                clip: false
+                                checked: settings.ypoo_m3_max
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+                                Layout.fillWidth: true
+                                onClicked: { settings.ypoo_m3_max = checked; window.settings_restart_to_apply = true; }
+                            }
                         }
                     }
 

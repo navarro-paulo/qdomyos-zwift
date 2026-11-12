@@ -176,6 +176,7 @@ public:
     DEFINE_DEVICE(WahooKickrSnapBike, "Wahoo Kickr Snap Bike");
     DEFINE_DEVICE(YesoulBike, "Yesoul Bike");
     DEFINE_DEVICE(YpooTreadmill, "Ypoo Treadmill");
+    DEFINE_DEVICE(YpooTreadmill_M3Max, "Ypoo Treadmill (M3 MAX)");
     DEFINE_DEVICE(YpooElliptical, "Ypoo Elliptical");
     DEFINE_DEVICE(YpooElliptical2, "Ypoo Elliptical 2");
     DEFINE_DEVICE(YpooElliptical3, "Ypoo Elliptical 3");

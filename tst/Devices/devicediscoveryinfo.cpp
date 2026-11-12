@@ -56,6 +56,7 @@ void InitializeTrackedSettings()
     trackedSettings.insert(QZSettings::toorx_ftms, QZSettings::default_toorx_ftms);
     trackedSettings.insert(QZSettings::toorx_ftms_treadmill, QZSettings::default_toorx_ftms_treadmill);
     trackedSettings.insert(QZSettings::virtufit_etappe, QZSettings::default_virtufit_etappe);
+    trackedSettings.insert(QZSettings::ypoo_m3_max, QZSettings::default_ypoo_m3_max);
 };
 
 static void AssertKeyIsTracked(const QString& key) {

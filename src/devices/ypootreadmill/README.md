@@ -7,9 +7,19 @@ Device discovery selects the driver automatically from the Bluetooth name.
 | --- | --- | --- | --- |
 | `YPTM-U0` | 1.0–18.8 km/h | −6–15% | Signed percentage in 0.1% units |
 | `YP-M1552-` | 1.0–18.8 km/h | 0–12% | Levels 0–21 in 0.1-level units |
+| `YPTM-U` with **M3 MAX (MegaGym Everest 49)** enabled | 1.0–18.8 km/h | −6–42% | Signed percentage in 0.1% units |
 
-Both models use 0.1 km/h speed steps and 1% incline targets.
+All models use 0.1 km/h speed steps and 1% incline targets.
 Other YPTM models and YPOO Mini Pro use the Horizon driver.
+
+YPOO lists the YP-M3 MAX with incline levels from −6 to +42; its console reports and accepts them as FTMS
+percentages, which is how this driver handles them.
+
+The M3 MAX (sold in Brazil as MegaGym Everest 49) names itself `YPTM-U` followed by the last three bytes of its
+Bluetooth address, for example `YPTM-UA1B2C3` for an address ending in `A1:B2:C3`, so the name cannot tell it from the M5.
+Enable **Settings → Treadmill Options → YPOO Treadmill Options → M3 MAX (MegaGym Everest 49)** to use this
+driver with the −6–42% range for every `YPTM-U` console. The console does not answer reads of the FTMS
+Supported Speed/Inclination Range characteristics, so the range comes from the setting.
 
 ## Connection and handshake
 

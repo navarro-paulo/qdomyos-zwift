@@ -2,7 +2,7 @@
   "$schema": "https://qdomyos-zwift.local/settings-catalog.schema.json",
   "schemaVersion": 1,
   "format": "qdomyos-zwift-settings-catalog",
-  "settingCount": 1047,
+  "settingCount": 1048,
   "pages": [
     {
       "key": "page_custom_gear_table",
@@ -16562,6 +16562,20 @@
         ]
       },
       "restartRequired": false
+    },
+    {
+      "key": "ypoo_m3_max",
+      "name": "M3 MAX (MegaGym Everest 49)",
+      "description": null,
+      "parent": "YPOO Treadmill Options",
+      "type": "boolean",
+      "qmlType": "bool",
+      "control": "switch",
+      "visible": true,
+      "defaultValue": false,
+      "defaultExpression": "false",
+      "options": null,
+      "restartRequired": true
     }
   ],
   "legacyHierarchy": {
@@ -16895,6 +16909,13 @@
         "parent": "treadmillAccordion",
         "depth": 1,
         "sourceLine": 12179
+      },
+      {
+        "key": "ypooTreadmillAccordion",
+        "name": "YPOO Treadmill Options",
+        "parent": "treadmillAccordion",
+        "depth": 1,
+        "sourceLine": 12225
       },
       {
         "key": "horizonTreadmillAccordion",
@@ -17717,7 +17738,8 @@
       "history_chart_cadence_order": "historyChartsAccordion",
       "history_chart_power_distribution_order": "historyChartsAccordion",
       "history_chart_speed_inclination_order": "historyChartsAccordion",
-      "daum_serialport": "daumBikeAccordion"
+      "daum_serialport": "daumBikeAccordion",
+      "ypoo_m3_max": "ypooTreadmillAccordion"
     },
     "virtualNodeByKey": {
       "nordictrack_bike_model": "proformBikeAccordion",
@@ -18766,7 +18788,8 @@
       "history_chart_cadence_order": "settings.qml",
       "history_chart_power_distribution_order": "settings.qml",
       "history_chart_speed_inclination_order": "settings.qml",
-      "daum_serialport": "settings.qml"
+      "daum_serialport": "settings.qml",
+      "ypoo_m3_max": "settings.qml"
     },
     "itemOrderByKey": {
       "age": 3044,
@@ -19655,7 +19678,8 @@
       "history_chart_cadence_order": 7152,
       "history_chart_power_distribution_order": 7153,
       "history_chart_speed_inclination_order": 7154,
-      "daum_serialport": 6413
+      "daum_serialport": 6413,
+      "ypoo_m3_max": 12227
     },
     "externalEntryOrderByKey": {
       "miles_unit": 20,

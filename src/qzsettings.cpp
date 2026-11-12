@@ -1366,7 +1366,9 @@ const QString QZSettings::default_ui_theme_mode = QStringLiteral("auto");
 
 const QString QZSettings::wahoo_wheel_question_answered = QStringLiteral("wahoo_wheel_question_answered");
 
-const uint32_t allSettingsCount = 1054;
+const QString QZSettings::ypoo_m3_max = QStringLiteral("ypoo_m3_max");
+
+const uint32_t allSettingsCount = 1055;
 
 QVariant allSettings[allSettingsCount][2] = {
     {QZSettings::cryptoKeySettingsProfiles, QZSettings::default_cryptoKeySettingsProfiles},
@@ -2447,6 +2449,7 @@ QVariant allSettings[allSettingsCount][2] = {
     {QZSettings::ui_accent, QZSettings::default_ui_accent},
     {QZSettings::ui_theme_mode, QZSettings::default_ui_theme_mode},
     {QZSettings::wahoo_wheel_question_answered, QZSettings::default_wahoo_wheel_question_answered},
+    {QZSettings::ypoo_m3_max, QZSettings::default_ypoo_m3_max},
 };
 
 void QZSettings::qDebugAllSettings(bool showDefaults) {

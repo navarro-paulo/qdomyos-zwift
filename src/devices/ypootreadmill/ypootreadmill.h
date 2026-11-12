@@ -41,6 +41,7 @@ class ypootreadmill : public treadmill {
                              uint8_t *data, uint8_t size, QString info);
     void processTelemetry(const QByteArray &data, qint64 now);
     void applyModelRanges();
+    void requestSupportedRanges();
     bool applySupportedRange(const QBluetoothUuid &uuid, const QByteArray &value);
     static QByteArray encodeRange(double min, double max, double step, double scale);
     friend class YpooTreadmillTestPeer;

@@ -93,6 +93,7 @@ void ypootreadmill::btinit() {
             emit debug(QStringLiteral("YPOO M5: control granted and live telemetry received; ready"));
             if (homeform::singleton())
                 homeform::singleton()->setToastRequested(QObject::tr("YPOO M5 ready"));
+            requestSupportedRanges();
             return;
         }
         emit debug(QStringLiteral("YPOO M5: initialization attempt %1 unconfirmed; no motor commands sent")
@@ -122,6 +123,7 @@ void ypootreadmill::btinit() {
             emit debug(QStringLiteral("YPOO M5: control not granted but telemetry is live; open FTMS mode"));
             if (homeform::singleton())
                 homeform::singleton()->setToastRequested(QObject::tr("YPOO M5 ready (open FTMS mode)"));
+            requestSupportedRanges();
             return;
         }
     }
@@ -395,6 +397,21 @@ bool ypootreadmill::applySupportedRange(const QBluetoothUuid &uuid, const QByteA
     return false;
 }
 
+void ypootreadmill::requestSupportedRanges() {
+    // A MegaGym Everest 49 (YPTM-U, M5 MAX) leaves 2AD4/2AD5 empty during service discovery on
+    // Android, i.e. before the unlock. Ask again once the console is unlocked and the CCCD writes
+    // are done; a failed read only logs a service error and telemetry still widens the range.
+    if (!YPTM_U || !gattFTMSService)
+        return;
+    for (const auto uuid : {quint16(0x2AD4), quint16(0x2AD5)}) {
+        const auto characteristic = gattFTMSService->characteristic(QBluetoothUuid(uuid));
+        if (!characteristic.isValid() || !(characteristic.properties() & QLowEnergyCharacteristic::Read))
+            continue;
+        emit debug(QStringLiteral("YPOO M5: reading ") + characteristic.uuid().toString());
+        gattFTMSService->readCharacteristic(characteristic);
+    }
+}
+
 void ypootreadmill::characteristicRead(const QLowEnergyCharacteristic &characteristic, const QByteArray &value) {
     emit debug(QStringLiteral(" <R ") + characteristic.uuid().toString() + QStringLiteral(" ") + value.toHex(' '));
     if (applySupportedRange(characteristic.uuid(), value))
@@ -464,7 +481,8 @@ void ypootreadmill::stateChanged(QLowEnergyService::ServiceState state) {
     if (YPTM_U) {
         // Learn the console's advertised ranges before any target is requested. Service discovery
         // already read every readable characteristic; an explicit read here races the CCCD writes
-        // below and fails on Android (seen on a MegaGym Everest 49), so use the cached values.
+        // below and fails on Android (seen on a MegaGym Everest 49), so use the cached values and
+        // read again after the unlock (requestSupportedRanges).
         for (const auto uuid : {quint16(0x2AD4), quint16(0x2AD5)}) {
             const auto characteristic = gattFTMSService->characteristic(QBluetoothUuid(uuid));
             if (!characteristic.isValid())
